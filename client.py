@@ -52,7 +52,7 @@ home_host = 'http://uw471.mikr.us'
 
 Function that connect PC to remote CC server.
 There are basic informations necessary to register PC (or update if PC exists, but
-this will be made by server side.
+this will be made by server side).
 
 """
 
