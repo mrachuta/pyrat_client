@@ -57,3 +57,4 @@ include
 lib
 client.exe
 test
+client.spec

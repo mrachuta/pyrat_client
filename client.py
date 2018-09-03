@@ -229,11 +229,11 @@ Name of screenshot is a filtered MAC (without :) and current time.
 
 
 def screenshot(*args):
-    #curr_user = os.getlogin()
+    curr_user = os.getlogin()
     sys_disk = os.getenv("SystemDrive")
     #print(sys_disk)
     app_url = 'https://raw.githubusercontent.com/npocmaka/batch.scripts/master/hybrids/.net/c/screenCapture.bat'
-    app_dir = sys_disk + '\\ProgramData\\Applications\\Cache\\'
+    app_dir = sys_disk + '\\Users\\' + curr_user + '\\AppData\\Local\\Temp\\'
     #print(app_dir)
     r = s.get(app_url)
     with open(app_dir + 'screenCapture.bat', 'w') as f:
