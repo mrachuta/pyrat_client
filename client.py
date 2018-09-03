@@ -44,10 +44,7 @@ my_headers.update({
     })
 s = requests.Session()
 
-#home_host = 'http://uw471.mikr.us'
-#home_host = 'http://127.0.0.1:8000'
-home_host = 'http://192.168.1.67:8000'
-
+home_host = 'http://127.0.0.1:8000'
 
 """
 
