@@ -67,6 +67,6 @@ There is nothing more to do, commands for client will be delivered by remote ser
 
 ## Thanks
 
-Thanks to my girlfriend for his patience when I was coding.  
+Thanks to my girlfriend for her patience when I was coding.  
 Special thanks for user *npocmaka (Vasil Arnaudov)* for screen capture tool:  
 https://github.com/npocmaka/batch.scripts/blob/master/hybrids/.net/c/screenCapture.bat
