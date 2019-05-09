@@ -9,7 +9,7 @@ pyrat - python remote acess tool - client app.
 * [Thanks](#thanks)
 
 ## General info
-During business trip, IT-Helpdesk (from my company) helped me to install some software on my business laptop (I have no admin permissions).  
+During business trip, IT-Helpdesk (from company that I am working for) helped me to install some software on my business laptop (I have no admin privleges).  
 I wondered, how this is possible, that they still can connect to my PC, even if I was behind two NAT's.   
 The port 80 was the key.
 
@@ -17,11 +17,11 @@ This tool was created for training purposes only, never was and will be used as 
 
 Main goals for client:
 
-a) as less as possible imported libraries with keeping the same functionality as first idea,  
-b) short code,  
-c) keeping data encoded, during transfering via port 80,  
-d) make script 'persistent' - if some problems with connection was found, script kill himself, and run another instance,  
-e) unhidden work - this code won't be like malicious software; code was written only for training.
+* as less as possible imported libraries with keeping the same functionality as first idea,  
+* short code,  
+* keeping data encoded, during transfering via port 80,  
+* make script 'persistent' - if some problems with connection will occur, script kill itself, and start automatically next instance,  
+* unhidden work - this code won't be like malicious software; code was written only for training.
 
 ## Technologies
 Code was written as a Python 3 code.
@@ -60,7 +60,7 @@ Remember, you will need to setup and run server first! Otherwise, client will be
 To run:
 
 ```
-python ns.py
+python client.py
 ```
 
 There is nothing more to do, commands for client will be delivered by remote server (https://github.com/mrachuta/pyrat_server)
